@@ -70,6 +70,7 @@ export class Engine {
   private disposed = false;
   private built = false;
   private tmpV = new THREE.Vector3();
+  private tmpV2 = new THREE.Vector3();
   private downXY: [number, number] | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -141,6 +142,7 @@ export class Engine {
     this.applyViewOffset();
     this.bind();
     this.built = true;
+    if (import.meta.env.DEV) (window as unknown as { __lm?: Engine }).__lm = this;
     useApp.setState({ ready: true });
     this.setDay(0);
     this.triggerEvent(EV_SORTED[0], { quiet: true });
@@ -658,15 +660,40 @@ export class Engine {
     sys.enemies.update(this.day, this.time, st.show.labels);
     if (inBattle) this.battle!.ring?.update(this.day, this.time);
 
+    // 事件标记：未来事件完全隐藏；已过事件标签随时间淡出；屏幕空间去重叠防堆叠
+    const labelCands: { m: (typeof sys.markers.markers)[number]; op: number; isCur: boolean; day: number }[] = [];
     for (const m of sys.markers.markers) {
       const past = this.day >= m.day;
-      m.mesh.material.opacity = past ? 1 : 0.35;
-      m.mesh.material.emissiveIntensity = past ? 1.2 : 0.4;
-      m.mesh.rotation.y = this.time * (past ? 0.9 : 0.2);
-      const isCur = st.current && st.current.id === m.ev.id;
+      m.mesh.visible = past;
+      m.mesh.material.opacity = past ? 1 : 0;
+      m.mesh.material.emissiveIntensity = past ? 1.2 : 0;
+      m.mesh.rotation.y = this.time * 0.9;
+      const isCur = !!st.current && st.current.id === m.ev.id;
       m.mesh.scale.setScalar(isCur ? 1.5 + 0.25 * Math.sin(this.time * 5) : 1);
-      m.label.visible = st.show.labels;
-      m.label.material.opacity = st.show.labels ? (past ? 0.95 : 0.4) : 0;
+      if (!past || !st.show.labels) { m.label.visible = false; continue; }
+      const age = this.day - m.day;
+      const op = isCur ? 1 : Math.max(0, 1 - Math.max(0, age - 12) / 28) * 0.9;
+      if (op <= 0.05) { m.label.visible = false; continue; }
+      m.label.material.opacity = op;
+      labelCands.push({ m, op, isCur, day: m.day });
+    }
+    labelCands.sort((a, b) => (b.isCur ? 1 : 0) - (a.isCur ? 1 : 0) || b.day - a.day);
+    const accepted: { x: number; y: number; w: number; h: number }[] = [];
+    const pxPerUnitBase = innerHeight / (2 * Math.tan((this.camera.fov / 2) * Math.PI / 180));
+    for (const c of labelCands) {
+      c.m.label.getWorldPosition(this.tmpV2);
+      const dist = this.tmpV2.distanceTo(this.camera.position);
+      this.tmpV2.project(this.camera);
+      if (this.tmpV2.z > 1 || this.tmpV2.z < -1 || dist < 0.001) { c.m.label.visible = false; continue; }
+      const sx = (this.tmpV2.x * 0.5 + 0.5) * innerWidth;
+      const sy = (-this.tmpV2.y * 0.5 + 0.5) * innerHeight;
+      const ppu = pxPerUnitBase / dist;
+      const w = c.m.label.scale.x * ppu + 8;
+      const h = c.m.label.scale.y * ppu + 6;
+      const rect = { x: sx - w / 2, y: sy - h / 2, w, h };
+      const hit = accepted.some((r) => rect.x < r.x + r.w && rect.x + rect.w > r.x && rect.y < r.y + r.h && rect.y + rect.h > r.y);
+      if (hit) { c.m.label.visible = false; }
+      else { c.m.label.visible = true; accepted.push(rect); }
     }
 
     if (this.camTween) {

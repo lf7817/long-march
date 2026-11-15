@@ -193,7 +193,7 @@ export function buildEnemies(scene: THREE.Scene, moves: EnemyMove[], blockadeDef
     items.push({ curve, tube, cone, mat, coneMat, flows, label, startDay: dayOf(m.start), endDay: dayOf(m.end) });
   }
 
-  const blockades: { line: THREE.Line; mat: THREE.LineDashedMaterial; label: THREE.Sprite; untilDay: number }[] = [];
+  const blockades: { line: THREE.Line; mat: THREE.LineDashedMaterial; label: THREE.Sprite; untilDay: number; startDay: number }[] = [];
   for (const b of blockadeDefs) {
     const pts: THREE.Vector3[] = [];
     for (let i = 0; i <= 14; i++) {
@@ -211,7 +211,7 @@ export function buildEnemies(scene: THREE.Scene, moves: EnemyMove[], blockadeDef
     label.position.copy(pts[7]).add(new THREE.Vector3(0, 1.0, 0));
     label.userData.baseY = label.position.y;
     grp.add(line, label);
-    blockades.push({ line, mat, label, untilDay: dayOf(b.until) });
+    blockades.push({ line, mat, label, untilDay: dayOf(b.until), startDay: dayOf(b.until) - 25 });
   }
 
   const commanders = (withCommanders ? [
@@ -252,10 +252,13 @@ export function buildEnemies(scene: THREE.Scene, moves: EnemyMove[], blockadeDef
       }
     }
     for (const bl of blockades) {
-      const op = day < bl.untilDay ? 0.8 : Math.max(0.1, 0.8 - (day - bl.untilDay) * 0.08);
+      const fadeIn = Math.max(0, Math.min(1, (day - bl.startDay) / 3));
+      const fadeOut = day < bl.untilDay ? 1 : Math.max(0, 1 - (day - bl.untilDay) / 12);
+      const op = 0.8 * fadeIn * fadeOut;
       bl.mat.opacity = op;
+      bl.line.visible = op > 0.02;
       bl.label.material.opacity = Math.min(0.95, op + 0.1);
-      bl.label.visible = showLabels;
+      bl.label.visible = showLabels && op > 0.02;
     }
     for (const cm of commanders) {
       const fade = Math.max(0, Math.min(1, (day - cm.startDay) / 3, (cm.endDay - day) / 3));
