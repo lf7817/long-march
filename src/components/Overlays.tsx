@@ -117,6 +117,7 @@ export function BattleConclusion() {
   return (
     <div id="finale">
       <div className="modal finale-modal">
+        <button className="card-close" title="关闭" onClick={() => patch({ battleDone: false })}>×</button>
         <div className="intro-seal small">✦</div>
         <h2>{battle.name} · 收束</h2>
         <p className="finale-sub">{fmtDate(dayOf(battle.start))} — {fmtDate(dayOf(battle.end))}</p>
