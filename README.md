@@ -2,6 +2,8 @@
 
 > 基于 **Three.js + React + Vite** 的三维历史沙盘：按时间线推演红军三个方面军的长征轨迹与敌军围追堵截，内置**通用战役模式**逐场复盘经典战役（四渡赤水、湘江战役……），用"合围环 + 渐进箭头 + 解说节拍"再现敌人如何围、红军如何突。
 
+**在线演示**：<https://lf7817.github.io/long-march/> （GitHub Pages，推送 `main` 自动构建部署）
+
 <p align="center">
   <img src="docs/screenshots/panorama.jpg" width="32%" alt="全景模式" />
   <img src="docs/screenshots/battle-chishui.jpg" width="32%" alt="战役模式·四渡赤水" />
